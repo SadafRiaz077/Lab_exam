@@ -1,0 +1,84 @@
+---
+- name: Configure EC2 Web Server
+  hosts: ec2
+  become: true
+  vars:
+    imds_url: "http://169.254.169.254/latest/meta-data"
+
+  tasks:
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Update system packages
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+
+    - name: Stop and disable Nginx if installed
+      ansible.builtin.systemd:
+        name: nginx
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove Nginx package if installed
+      ansible.builtin.yum:
+        name: nginx
+        state: absent
+      ignore_errors: yes
+
+    - name: Install httpd (Apache)
+      ansible.builtin.yum:
+        name: httpd
+        state: present
+
+    - name: Start and enable httpd service
+      ansible.builtin.systemd:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Get IMDSv2 token
+      ansible.builtin.uri:
+        url: "{{ imds_url }}/api/token"
+        method: PUT
+        headers:
+          X-aws-ec2-metadata-token-ttl-seconds: 21600
+        return_content: yes
+      register: imds_token
+      ignore_errors: yes
+
+    - name: Get public IPv4
+      ansible.builtin.uri:
+        url: "{{ imds_url }}/public-ipv4"
+        method: GET
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: yes
+      register: ec2_public_ip
+      ignore_errors: yes
+
+    - name: Get public hostname
+      ansible.builtin.uri:
+        url: "{{ imds_url }}/public-hostname"
+        method: GET
+        headers:
+          X-aws-ec2-metadata-token: "{{ imds_token.content }}"
+        return_content: yes
+      register: ec2_public_hostname
+      ignore_errors: yes
+
+    - name: Print EC2 public IP
+      ansible.builtin.debug:
+        msg: "EC2 public IP is {{ ec2_public_ip.content }}"
+
+    - name: Print EC2 public hostname
+      ansible.builtin.debug:
+        msg: "EC2 public hostname is {{ ec2_public_hostname.content }}"
+
+    - name: Restart httpd
+      ansible.builtin.systemd:
+        name: httpd
+        state: restarted
+

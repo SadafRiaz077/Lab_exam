@@ -1,0 +1,6 @@
+*.tfstate
+*.tfstate.*
+*.pem
+*.key
+*.crt
+*.log
