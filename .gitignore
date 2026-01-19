@@ -1,6 +1,7 @@
+# Terraform local files
+q2-terraform/.terraform/
+q2-terraform/*.zip
 *.tfstate
-*.tfstate.*
-*.pem
-*.key
-*.crt
-*.log
+*.tfstate.backup
+.terraform.lock.hcl
+

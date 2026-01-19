@@ -1,0 +1,50 @@
+---
+- name: Configure EC2 Web Server
+  hosts: ec2
+  become: true
+
+  tasks:
+    - name: Update system packages
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Stop nginx if installed
+      service:
+        name: nginx
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove nginx if installed
+      yum:
+        name: nginx
+        state: absent
+      ignore_errors: yes
+
+    - name: Install httpd (Apache)
+      yum:
+        name: httpd
+        state: present
+
+    - name: Start and enable httpd
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Get public IPv4 (IMDSv1 fallback allowed)
+      uri:
+        url: http://169.254.169.254/latest/meta-data/public-ipv4
+        return_content: yes
+      register: ec2_ip
+      ignore_errors: yes
+
+    - name: Print EC2 public IP
+      debug:
+        msg: "EC2 public IP is {{ ec2_ip.content | default('N/A') }}"
+
+    - name: Restart httpd
+      service:
+        name: httpd
+        state: restarted
